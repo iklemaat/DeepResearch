@@ -54,8 +54,8 @@ class MultiTurnReactAgent(FnCallAgent):
                  llm: Optional[Union[Dict, BaseChatModel]] = None,
                  **kwargs):
 
-        self.llm_generate_cfg = llm["generate_cfg"]
-        self.llm_local_path = llm["model"]
+        self.llm_generate_cfg = llm.get("generate_cfg", {})
+        self.llm_local_path = llm.get("model")
 
     def sanity_check_output(self, content):
         return "<think>" in content and "</think>" in content
@@ -106,6 +106,9 @@ class MultiTurnReactAgent(FnCallAgent):
         return "LLM server error!!!"
 
     def count_tokens(self, messages):
+        if not self.llm_local_path:
+            # Cannot count tokens without a tokenizer path
+            return 0
         tokenizer = AutoTokenizer.from_pretrained(self.llm_local_path) 
         full_prompt = tokenizer.apply_chat_template(messages, tokenize=False)
         tokens = tokenizer(full_prompt, return_tensors="pt")
@@ -113,7 +116,7 @@ class MultiTurnReactAgent(FnCallAgent):
         
         return token_count
 
-    def _run(self, data: str, **kwargs) -> List[List[Message]]:
+    def _run(self, data: str, api_keys: Dict[str, str], **kwargs) -> List[List[Message]]:
         try:
             question = data['item']['question']
         except: 
@@ -125,9 +128,9 @@ class MultiTurnReactAgent(FnCallAgent):
         self.user_prompt = question
 
         # Step 1: Call the planner LLM
-        planner_model_name = os.getenv('PLANNER_MODEL_NAME')
-        deepseek_api_key = os.getenv('DEEPSEEK_API_KEY')
-        deepseek_api_base = os.getenv('DEEPSEEK_API_BASE')
+        planner_model_name = os.getenv('PLANNER_MODEL_NAME', 'deepseek/deepseek-coder')
+        deepseek_api_key = api_keys.get('deepseek')
+        deepseek_api_base = os.getenv('DEEPSEEK_API_BASE', 'https://api.deepseek.com')
 
         planner_messages = [{"role": "system", "content": PLANNER_PROMPT}, {"role": "user", "content": question}]
 
@@ -149,9 +152,10 @@ class MultiTurnReactAgent(FnCallAgent):
             }
 
         # Step 2: Call the execution LLM with the research plan
-        execution_model_name = os.getenv('EXECUTION_MODEL_NAME')
-        openrouter_api_key = os.getenv('OPENROUTER_API_KEY')
-        openrouter_api_base = os.getenv('OPENROUTER_API_BASE')
+        execution_model_name = os.getenv('EXECUTION_MODEL_NAME', 'alibaba/tongyi-deepresearch-30b-a3b')
+        openrouter_api_key = api_keys.get('openrouter')
+        openrouter_api_base = os.getenv('OPENROUTER_API_BASE', 'https://openrouter.ai/api/v1')
+        brave_api_key = api_keys.get('brave')
 
         execution_system_prompt = EXECUTION_PROMPT.format(plan_from_planner=research_plan)
         execution_system_prompt += str(today_date())
@@ -162,16 +166,14 @@ class MultiTurnReactAgent(FnCallAgent):
         round = 0
         while num_llm_calls_available > 0:
             if time.time() - start_time > 150 * 60:
-                prediction = 'No answer found after 2h30mins'
-                termination = 'No answer found after 2h30mins'
-                result = {
+                return {
                     "question": question,
                     "answer": answer,
                     "messages": messages,
-                    "prediction": prediction,
-                    "termination": termination
+                    "prediction": "No answer found after 2h30mins",
+                    "termination": "Timeout"
                 }
-                return result
+
             round += 1
             num_llm_calls_available -= 1
 
@@ -202,7 +204,7 @@ class MultiTurnReactAgent(FnCallAgent):
                         tool_call = json5.loads(tool_call)
                         tool_name = tool_call.get('name', '')
                         tool_args = tool_call.get('arguments', {})
-                        result = self.custom_call_tool(tool_name, tool_args)
+                        result = self.custom_call_tool(tool_name, tool_args, brave_api_key=brave_api_key)
                 except:
                     result = 'Error: Tool call is not a valid JSON. Tool call must contain a valid "name" and "arguments" field.'
 
@@ -211,37 +213,6 @@ class MultiTurnReactAgent(FnCallAgent):
 
             if '<answer>' in content and '</answer>' in content:
                 break
-
-            max_tokens = 110 * 1024
-            token_count = self.count_tokens(messages)
-            print(f"round: {round}, token count: {token_count}")
-
-            if token_count > max_tokens:
-                print(f"Token quantity exceeds the limit: {token_count} > {max_tokens}")
-                
-                messages[-1]['content'] = "You have now reached the maximum context length you can handle. You should stop making tool calls and, based on all the information above, think again and provide what you consider the most likely answer in the following format:<think>your final thinking</think>\n<answer>your answer</answer>"
-                content = self.call_server(
-                    messages,
-                    execution_model_name,
-                    openrouter_api_key,
-                    openrouter_api_base,
-                    stop_sequences=["\n<tool_response>", "<tool_response>"]
-                )
-                messages.append({"role": "assistant", "content": content.strip()})
-                if '<answer>' in content and '</answer>' in content:
-                    prediction = messages[-1]['content'].split('<answer>')[1].split('</answer>')[0]
-                    termination = 'generate an answer as token limit reached'
-                else:
-                    prediction = messages[-1]['content']
-                    termination = 'format error: generate an answer as token limit reached'
-                result = {
-                    "question": question,
-                    "answer": answer,
-                    "messages": messages,
-                    "prediction": prediction,
-                    "termination": termination
-                }
-                return result
 
         if '<answer>' in messages[-1]['content']:
             prediction = messages[-1]['content'].split('<answer>')[1].split('</answer>')[0]
@@ -262,17 +233,11 @@ class MultiTurnReactAgent(FnCallAgent):
     def custom_call_tool(self, tool_name: str, tool_args: dict, **kwargs):
         if tool_name in TOOL_MAP:
             tool_args["params"] = tool_args
-            if "python" in tool_name.lower():
-                result = TOOL_MAP['PythonInterpreter'].call(tool_args)
-            elif tool_name == "parse_file":
-                params = {"files": tool_args["files"]}
-                raw_result = asyncio.run(TOOL_MAP[tool_name].call(params, file_root_path="./eval_data/file_corpus"))
-                result = raw_result
-                if not isinstance(raw_result, str):
-                    result = str(raw_result)
-            else:
-                raw_result = TOOL_MAP[tool_name].call(tool_args, **kwargs)
-                result = raw_result
+            # Pass kwargs (which includes brave_api_key) to all tools
+            raw_result = TOOL_MAP[tool_name].call(tool_args, **kwargs)
+            result = raw_result
+            if not isinstance(raw_result, str):
+                result = str(raw_result)
             return result
         else:
             return f"Error: Tool {tool_name} not found"

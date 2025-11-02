@@ -20,10 +20,44 @@
 <p align="center">
 <a href="https://trendshift.io/repositories/14895" target="_blank"><img src="https://trendshift.io/api/badge/repositories/14895" alt="Alibaba-NLP%2FDeepResearch | Trendshift" style="width: 250px; height: 55px;" width="250" height="55"/></a>
 
+# Quick Start for Web App (Docker)
 
-👏 Welcome to try Tongyi DeepResearch via our **[<img src="./assets/tongyi.png" width="14px" style="display:inline;"> Modelscope online demo](https://www.modelscope.cn/studios/jialongwu/Tongyi-DeepResearch)** or **[🤗 Huggingface online demo](https://huggingface.co/spaces/Alibaba-NLP/Tongyi-DeepResearch)** or <img src="./WebAgent/assets/aliyun.png" width="14px" style="display:inline;">  **[bailian service](https://bailian.console.aliyun.com/?spm=a2ty02.31808181.d_app-market.1.6c4974a1tFmoFc&tab=app#/app/app-market/deep-search/)**!
-> [!NOTE]
-> This demo is for quick exploration only. Response times may vary or fail intermittently due to model latency and tool QPS limits. For a stable experience we recommend local deployment; for a production-ready service, visit  <img src="./WebAgent/assets/aliyun.png" width="14px" style="display:inline;"> [bailian](https://bailian.console.aliyun.com/?spm=a2ty02.31808181.d_app-market.1.6c4974a1tFmoFc&tab=app#/app/app-market/deep-search/) and follow the guided setup.
+This is the easiest way to get started. This method runs the Deep Research Agent as a web application inside a Docker container, so you don't have to worry about Python versions or dependencies.
+
+### Prerequisites
+- You must have **Docker** installed on your system. You can get it from the [official Docker website](https://www.docker.com/get-started).
+
+### Step 1: Build the Docker Image
+
+Open your terminal or command prompt, navigate to the root directory of this project (where the `Dockerfile` is), and run the following command. This will build the Docker image and install all dependencies. It might take a while the first time.
+
+```bash
+docker build -t deep-research-agent .
+```
+
+### Step 2: Run the Docker Container
+
+Once the image is built, run the following command to start the web application:
+
+```bash
+docker run -p 8000:8000 deep-research-agent
+```
+
+This command starts the agent and makes the web interface available on port 8000 of your computer.
+
+### Step 3: Open the Web Interface
+
+Open your web browser and go to the following address:
+
+[http://localhost:8000](http://localhost:8000)
+
+### Step 4: Configure API Keys
+
+The web interface has a settings section where you can enter your API keys for DeepSeek, OpenRouter, and Brave Search. These keys are saved securely in your browser's local storage and are required for the agent to function.
+
+Once your keys are saved, you can start asking research questions in the chat interface!
+
+---
 
 # Introduction
 
@@ -63,7 +97,7 @@ You can directly download the model by following the links below.
   <img width="100%" src="./assets/benchmark.png">
 </p>
 
-## Quick Start
+## Quick Start for Developers
 
 This guide provides instructions for setting up the environment and running inference scripts located in the [inference](./inference/) folder.
 
@@ -94,88 +128,20 @@ Configure your API keys and settings by copying the example environment file:
 cp .env.example .env
 ```
 
-Edit the `.env` file and provide your actual API keys and configuration values:
-
-- **SERPER_KEY_ID**: Get your key from [Serper.dev](https://serper.dev/) for web search and Google Scholar
-- **JINA_API_KEYS**: Get your key from [Jina.ai](https://jina.ai/) for web page reading
-- **API_KEY/API_BASE**: OpenAI-compatible API for page summarization from [OpenAI](https://platform.openai.com/)
-- **DASHSCOPE_API_KEY**: Get your key from [Dashscope](https://dashscope.aliyun.com/) for file parsing
-- **SANDBOX_FUSION_ENDPOINT**: Python interpreter sandbox endpoints (see [SandboxFusion](https://github.com/bytedance/SandboxFusion))
-- **MODEL_PATH**: Path to your model weights
-- **DATASET**: Name of your evaluation dataset
-- **OUTPUT_PATH**: Directory for saving results
-
-> **Note**: The `.env` file is gitignored, so your secrets will not be committed to the repository.
+Edit the `.env` file and provide your actual API keys and configuration values.
 
 #### Prepare Evaluation Data
 
 The system supports two input file formats: **JSON** and **JSONL**.
 
-#### Supported File Formats:
-
-**Option 1: JSONL Format (recommended)**
-- Create your data file with `.jsonl` extension (e.g., `my_questions.jsonl`)
-- Each line must be a valid JSON object with `question` and `answer` keys:
-  ```json
-  {"question": "What is the capital of France?", "answer": "Paris"}
-  {"question": "Explain quantum computing", "answer": ""}
-  ```
-
-**Option 2: JSON Format**
-- Create your data file with `.json` extension (e.g., `my_questions.json`)
-- File must contain a JSON array of objects, each with `question` and `answer` keys:
-  ```json
-  [
-    {"question": "What is the capital of France?", "answer": "Paris"},
-    {"question": "Explain quantum computing", "answer": ""}
-  ]
-  ```
-
-**Important Note:** The `answer` field contains the **ground truth/reference answer** used for evaluation. The system generates its own responses to the questions, and these reference answers are used to automatically judge the quality of the generated responses during benchmark evaluation.
-
-#### File References for Document Processing:
-- If using the *file parser* tool, **prepend the filename to the `question` field**
-- Place referenced files in `eval_data/file_corpus/` directory
-- Example: `{"question": "report.pdf What are the key findings?", "answer": "..."}`
-
-#### File Organization:
-```
-project_root/
-├── eval_data/
-│   ├── my_questions.jsonl          # Your evaluation data
-│   └── file_corpus/                # Referenced documents
-│       ├── report.pdf
-│       └── data.xlsx
-```
-
 ### 4. Configure the Inference Script
-- Open `run_react_infer.sh` and modify the following variables as instructed in the comments:
-  * `MODEL_PATH`  - path to the local or remote model weights.
-  * `DATASET`     - full path to your evaluation file, e.g. `eval_data/my_questions.jsonl` or `/path/to/my_questions.json`.
-  * `OUTPUT_PATH` - path for saving the prediction results, e.g. `./outputs`.
-- Depending on the tools you enable (retrieval, calculator, web search, etc.), provide the required `API_KEY`, `BASE_URL`, or other credentials. Each key is explained inline in the bash script.
-
+- Open `run_react_infer.sh` and modify the variables as needed.
 
 ### 5. Run the Inference Script
 
 ```bash
 bash run_react_infer.sh
 ```
----
-
-With these steps, you can fully prepare the environment, configure the dataset, and run the model. For more details, consult the inline comments in each script or open an issue.
-
-### 6. You can use OpenRouter's API to call our model
-Tongyi-DeepResearch-30B-A3B is now available at [OpenRouter](https://openrouter.ai/alibaba/tongyi-deepresearch-30b-a3b). You can run the inference without any GPUs.
-
-You need to modify the following in the file [inference/react_agent.py](https://github.com/Alibaba-NLP/DeepResearch/blob/main/inference/react_agent.py):
- - In the call_server function: Set the API key and URL to your OpenRouter account’s API and URL.
- - Change the model name to alibaba/tongyi-deepresearch-30b-a3b.
- - Adjust the content concatenation way as described in the comments on lines **88–90.**
-
-## Benchmark Evaluation
-
-We provide benchmark evaluation scripts for various datasets. Please refer to the [evaluation scripts](./evaluation/) directory for more details.
 
 ## Deep Research Agent Family
 

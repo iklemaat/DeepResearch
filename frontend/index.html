@@ -1,0 +1,42 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Deep Research Agent</title>
+    <link rel="stylesheet" href="styles.css">
+</head>
+<body>
+    <div class="container">
+        <h1>Deep Research Agent</h1>
+
+        <div id="settings">
+            <h2>API Keys</h2>
+            <p>Your API keys are saved in your browser's local storage. They are not sent to anyone except the respective API providers.</p>
+            <div class="api-key-input">
+                <label for="deepseek_api_key">DeepSeek API Key</label>
+                <input type="password" id="deepseek_api_key" placeholder="Enter your DeepSeek API Key">
+            </div>
+            <div class="api-key-input">
+                <label for="openrouter_api_key">OpenRouter API Key</label>
+                <input type="password" id="openrouter_api_key" placeholder="Enter your OpenRouter API Key">
+            </div>
+            <div class="api-key-input">
+                <label for="brave_api_key">Brave API Key</label>
+                <input type="password" id="brave_api_key" placeholder="Enter your Brave API Key">
+            </div>
+            <button id="save_keys">Save Keys</button>
+            <p id="keys_saved_message" class="hidden">API keys saved!</p>
+        </div>
+
+        <div id="chat_container">
+            <div id="chat_box"></div>
+            <div id="input_area">
+                <input type="text" id="user_input" placeholder="Ask a research question...">
+                <button id="send_button">Send</button>
+            </div>
+        </div>
+    </div>
+    <script src="script.js"></script>
+</body>
+</html>

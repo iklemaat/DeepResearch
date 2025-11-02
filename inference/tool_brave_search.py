@@ -71,16 +71,15 @@ class BraveSearch(BaseTool):
             if not query:
                 return 'Error: The "query" parameter is required.'
 
-            api_key = os.getenv('BRAVE_API_KEY')
+            api_key = kwargs.get('brave_api_key')
             if not api_key:
-                return 'Error: The BRAVE_API_KEY environment variable is not set.'
+                return 'Error: Brave API key was not provided to the tool.'
 
             headers = {
                 'X-Subscription-Token': api_key,
                 'Accept': 'application/json'
             }
 
-            # Prepare the query parameters, removing any that are not provided
             search_params = {
                 'q': query,
                 'country': params.get('country'),
