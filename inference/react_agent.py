@@ -56,36 +56,27 @@ class MultiTurnReactAgent(FnCallAgent):
     def sanity_check_output(self, content):
         return "<think>" in content and "</think>" in content
     
-    def call_server(self, msgs, planning_port, max_tries=10):
-        
-        openai_api_key = "EMPTY"
-        openai_api_base = f"http://127.0.0.1:{planning_port}/v1"
-
+    def call_server(self, msgs, api_key, api_base, max_tries=10):
         client = OpenAI(
-            api_key=openai_api_key,
-            base_url=openai_api_base,
+            api_key=api_key,
+            base_url=api_base,
             timeout=600.0,
         )
 
-        base_sleep_time = 1 
+        base_sleep_time = 1
         for attempt in range(max_tries):
             try:
                 print(f"--- Attempting to call the service, try {attempt + 1}/{max_tries} ---")
                 chat_response = client.chat.completions.create(
-                    model=self.model,
+                    model='alibaba/tongyi-deepresearch-30b-a3b',
                     messages=msgs,
                     stop=["\n<tool_response>", "<tool_response>"],
                     temperature=self.llm_generate_cfg.get('temperature', 0.6),
                     top_p=self.llm_generate_cfg.get('top_p', 0.95),
-                    logprobs=True,
-                    max_tokens=10000,
+                    max_tokens=4096,
                     presence_penalty=self.llm_generate_cfg.get('presence_penalty', 1.1)
                 )
                 content = chat_response.choices[0].message.content
-
-                # OpenRouter provides API calling. If you want to use OpenRouter, you need to uncomment line 89 - 90.
-                # reasoning_content = "<think>\n" + chat_response.choices[0].message.reasoning.strip() + "\n</think>"
-                # content = reasoning_content + content                
                 
                 if content and content.strip():
                     print("--- Service call successful, received a valid response ---")
@@ -117,17 +108,9 @@ class MultiTurnReactAgent(FnCallAgent):
         
         return token_count
 
-    def _run(self, data: str, model: str, **kwargs) -> List[List[Message]]:
-        self.model=model
-        try:
-            question = data['item']['question']
-        except: 
-            raw_msg = data['item']['messages'][1]["content"] 
-            question = raw_msg.split("User:")[1].strip() if "User:" in raw_msg else raw_msg 
-
+    def _run(self, question: str, openrouter_api_key: str, openrouter_api_base: str, **kwargs) -> List[List[Message]]:
+        self.model = 'alibaba/tongyi-deepresearch-30b-a3b'
         start_time = time.time()
-        planning_port = data['planning_port']
-        answer = data['item']['answer']
         self.user_prompt = question
         system_prompt = SYSTEM_PROMPT
         cur_date = today_date()
@@ -142,7 +125,7 @@ class MultiTurnReactAgent(FnCallAgent):
                 termination = 'No answer found after 2h30mins'
                 result = {
                     "question": question,
-                    "answer": answer,
+                    "answer": "",
                     "messages": messages,
                     "prediction": prediction,
                     "termination": termination
@@ -150,7 +133,7 @@ class MultiTurnReactAgent(FnCallAgent):
                 return result
             round += 1
             num_llm_calls_available -= 1
-            content = self.call_server(messages, planning_port)
+            content = self.call_server(messages, openrouter_api_key, openrouter_api_base)
             print(f'Round {round}: {content}')
             if '<tool_response>' in content:
                 pos = content.find('<tool_response>')
@@ -201,7 +184,7 @@ class MultiTurnReactAgent(FnCallAgent):
                     termination = 'format error: generate an answer as token limit reached'
                 result = {
                     "question": question,
-                    "answer": answer,
+                    "answer": "",
                     "messages": messages,
                     "prediction": prediction,
                     "termination": termination
@@ -218,7 +201,7 @@ class MultiTurnReactAgent(FnCallAgent):
                 termination = 'exceed available llm calls'
         result = {
             "question": question,
-            "answer": answer,
+            "answer": "",
             "messages": messages,
             "prediction": prediction,
             "termination": termination

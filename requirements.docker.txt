@@ -1,0 +1,16 @@
+fastapi
+uvicorn
+pydantic
+openai
+requests
+python-dotenv
+qwen-agent
+json5
+tiktoken
+transformers
+sentencepiece
+python-dateutil
+pandas
+tabulate
+alibabacloud-docmind-api20220711
+sandbox-fusion

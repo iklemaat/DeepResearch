@@ -1,0 +1,39 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>DeepResearch UI</title>
+    <link rel="stylesheet" href="styles.css">
+</head>
+<body>
+    <div class="container">
+        <h1>DeepResearch Agent</h1>
+        <form id="agent-form">
+            <div class="form-group">
+                <label for="openrouter_api_key">OpenRouter API Key:</label>
+                <input type="password" id="openrouter_api_key" name="openrouter_api_key" required>
+            </div>
+            <div class="form-group">
+                <label for="serper_api_key">Serper API Key:</label>
+                <input type="password" id="serper_api_key" name="serper_api_key" required>
+            </div>
+            <div class="form-group">
+                <label for="jina_api_key">Jina API Key:</label>
+                <input type="password" id="jina_api_key" name="jina_api_key" required>
+            </div>
+            <div class="form-group">
+                <label for="question">Your Question:</label>
+                <textarea id="question" name="question" rows="5" required></textarea>
+            </div>
+            <button type="submit">Run Agent</button>
+        </form>
+        <div id="loading" class="hidden">Running...</div>
+        <div id="results-container" class="hidden">
+            <h2>Results</h2>
+            <pre id="results"></pre>
+        </div>
+    </div>
+    <script src="script.js"></script>
+</body>
+</html>
